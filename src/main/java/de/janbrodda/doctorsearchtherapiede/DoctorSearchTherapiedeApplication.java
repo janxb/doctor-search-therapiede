@@ -1,4 +1,4 @@
-package de.janbrodda.doctorsearchkvberlin;
+package de.janbrodda.doctorsearchtherapiede;
 
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
