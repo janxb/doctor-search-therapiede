@@ -1,1 +1,0 @@
-# doctor-search-therapiede
