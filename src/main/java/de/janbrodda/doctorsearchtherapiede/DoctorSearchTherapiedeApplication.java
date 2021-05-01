@@ -55,7 +55,7 @@ public class DoctorSearchTherapiedeApplication {
 				System.out.println("Found " + resultCount + " results, fetching up to page number " + maxPageNum);
 			}
 
-			System.out.println("Processing result page " + currentPageNum + " / " + (maxPageNum > 0 ? maxPageNum : "?"));
+			System.out.println("Processing result page " + currentPageNum + " / " + maxPageNum);
 			var foundDoctors = getDoctorsForResultPage(document, currentPageNum, maxPageNum);
 			doctors.addAll(foundDoctors.getDoctors());
 			if (foundDoctors.isBaseEntriesReached()) {
