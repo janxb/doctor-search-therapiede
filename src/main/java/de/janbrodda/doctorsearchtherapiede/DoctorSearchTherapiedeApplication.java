@@ -39,6 +39,8 @@ public class DoctorSearchTherapiedeApplication {
 		String radius = "25";
 		String mainUrl = baseUrl + "/therapeutensuche/ergebnisse/?ort=" + search + "&abrechnungsverfahren=7&search_radius=" + radius;
 
+		System.out.println("Starting doctors search for location '" + search + "' with radius " + radius + "km...");
+
 		List<Doctor> doctors = new ArrayList<>();
 		int currentPageNum = 0;
 		int maxPageNum = 0;
