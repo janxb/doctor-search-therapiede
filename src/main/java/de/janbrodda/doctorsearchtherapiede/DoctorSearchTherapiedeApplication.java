@@ -60,7 +60,7 @@ public class DoctorSearchTherapiedeApplication {
 				System.out.println("Stopping execution after page " + currentPageNum + ", rest of elements are base entries only");
 				break;
 			}
-		} while (currentPageNum <= maxPageNum);
+		} while (currentPageNum < maxPageNum);
 
 		AtomicInteger validDoctorCount = new AtomicInteger();
 		doctors.stream().filter(d -> d.getEmail() != null || d.getPhone() != null).forEach(d -> {
