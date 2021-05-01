@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.Singular;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -17,6 +18,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class DoctorSearchTherapiedeApplication {
 
@@ -33,33 +35,36 @@ public class DoctorSearchTherapiedeApplication {
 		headerRow.createCell(headerRow.getLastCellNum()).setCellValue("Phone");
 		headerRow.createCell(headerRow.getLastCellNum()).setCellValue("Address");
 
-		String search = "59065";
-		String radius = "50";
+		String search = "59494";
+		String radius = "25";
 		String mainUrl = baseUrl + "/therapeutensuche/ergebnisse/?ort=" + search + "&abrechnungsverfahren=7&search_radius=" + radius;
 
-		//System.out.println(mainUrl);
-		System.out.println("Fetching main search result page");
-		Document mainDoc = Jsoup.parse(((HtmlPage) webClient.getPage(mainUrl)).asXml());
+		List<Doctor> doctors = new ArrayList<>();
+		int currentPageNum = 0;
+		int maxPageNum = 0;
+		do {
+			currentPageNum++;
+			String pageUrl = mainUrl + "&page=" + currentPageNum;
+			Document document = Jsoup.parse(((HtmlPage) webClient.getPage(pageUrl)).asXml());
 
-		int resultCount = Integer.parseInt(mainDoc.selectFirst("h5.subheader").text().split(" ")[3]);
-		double pageCount = Math.ceil(resultCount / (double) pageSize);
-		System.out.println("Found " + resultCount + " results, fetching up to page number " + (int) pageCount);
+			if (currentPageNum == 1) {
+				int resultCount = Integer.parseInt(document.selectFirst("h5.subheader").text().split(" ")[3]);
+				maxPageNum = (int) Math.ceil(resultCount / (double) pageSize);
+				System.out.println("Found " + resultCount + " results, fetching up to page number " + maxPageNum);
+			}
 
-		List<Doctor> doctors = new ArrayList<>(getDoctorsForResultPage(mainDoc, 1, (int) pageCount));
-
-		for (int i = 2; i <= pageCount; i++) {
-			String pageUrl = mainUrl + "&page=" + i;
-			System.out.println("Fetching result page " + i + " / " + (int) pageCount);
-			var foundDoctors = getDoctorsForResultPage(Jsoup.parse(((HtmlPage) webClient.getPage(pageUrl)).asXml()), i, (int) pageCount);
-			doctors.addAll(foundDoctors);
-			if (foundDoctors.size() < pageSize) {
-				System.out.println("Stopping execution after page " + i + ", rest of elements are base entries only");
+			System.out.println("Processing result page " + currentPageNum + " / " + (maxPageNum > 0 ? maxPageNum : "?"));
+			var foundDoctors = getDoctorsForResultPage(document, currentPageNum, maxPageNum);
+			doctors.addAll(foundDoctors.getDoctors());
+			if (foundDoctors.isBaseEntriesReached()) {
+				System.out.println("Stopping execution after page " + currentPageNum + ", rest of elements are base entries only");
 				break;
 			}
-		}
+		} while (currentPageNum <= maxPageNum);
 
-		System.out.println(doctors);
+		AtomicInteger validDoctorCount = new AtomicInteger();
 		doctors.stream().filter(d -> d.getEmail() != null || d.getPhone() != null).forEach(d -> {
+			validDoctorCount.getAndIncrement();
 			Row row = sheet.createRow(sheet.getLastRowNum() + 1);
 			row.createCell(0).setCellValue(d.getName());
 			row.createCell(row.getLastCellNum()).setCellValue(d.getEmail());
@@ -70,20 +75,24 @@ public class DoctorSearchTherapiedeApplication {
 		FileOutputStream outputStream = new FileOutputStream("doctors_" + search + "_" + radius + "km.xlsx");
 		workbook.write(outputStream);
 		workbook.close();
+
+		System.out.println("Finished! Found " + doctors.size() + " results, of which " + validDoctorCount.get() + " have valid contact details.");
 	}
 
-	static List<Doctor> getDoctorsForResultPage(Document mainDoc, int pageNum, int pageCount) throws IOException {
-		List<Doctor> doctors = new ArrayList<>();
+	static SearchResult getDoctorsForResultPage(Document mainDoc, int pageNum, int pageCount) throws IOException {
+		SearchResult.SearchResultBuilder searchResultBuilder = new SearchResult.SearchResultBuilder();
+		searchResultBuilder.baseEntriesReached(mainDoc.selectFirst("div.radius") != null);
+
 		int i = 0;
 		for (Element searchResult : mainDoc.select(".search-results-list .panel-title")) {
 			i++;
 			Element detailsLink = searchResult.selectFirst("a");
 			if (detailsLink == null) {
-				break;
+				System.out.println("Skipping details page " + i + " / " + pageSize + " of search result page " + pageNum + " / " + pageCount);
+				continue;
 			}
 
 			String detailsUrl = baseUrl + detailsLink.attr("href");
-			//System.out.println(detailsUrl);
 			System.out.println("Fetching details page " + i + " / " + pageSize + " of search result page " + pageNum + " / " + pageCount);
 			HtmlPage detailsPage = webClient.getPage(detailsUrl);
 			Document detailsDoc = Jsoup.parse(detailsPage.asXml());
@@ -97,10 +106,20 @@ public class DoctorSearchTherapiedeApplication {
 				email = (String) detailsPage.executeJavaScript("decryptString(contactEmail, -1)").getJavaScriptResult();
 			} catch (Exception ignored) {
 			}
-			doctors.add(Doctor.builder().phone(phone).email(email).name(name).street(street).postalCode(postalCode).city(city).build());
+			searchResultBuilder.doctor(Doctor.builder().phone(phone).email(email).name(name).street(street).postalCode(postalCode).city(city).build());
 		}
-		return doctors;
+		return searchResultBuilder.build();
 	}
+}
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+class SearchResult {
+	private boolean baseEntriesReached;
+	@Singular
+	private List<Doctor> doctors;
 }
 
 @Data
