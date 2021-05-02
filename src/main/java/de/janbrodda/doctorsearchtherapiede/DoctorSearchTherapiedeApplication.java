@@ -35,8 +35,8 @@ public class DoctorSearchTherapiedeApplication {
 		headerRow.createCell(headerRow.getLastCellNum()).setCellValue("Phone");
 		headerRow.createCell(headerRow.getLastCellNum()).setCellValue("Address");
 
-		String search = "59494";
-		String radius = "25";
+		String search = "50667";
+		int radius = 5;
 		String mainUrl = baseUrl + "/therapeutensuche/ergebnisse/?ort=" + search + "&abrechnungsverfahren=7&search_radius=" + radius;
 
 		System.out.println("Starting doctors search for location '" + search + "' with radius " + radius + "km...");
