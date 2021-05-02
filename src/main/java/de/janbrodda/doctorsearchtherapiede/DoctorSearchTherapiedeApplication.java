@@ -50,8 +50,14 @@ public class DoctorSearchTherapiedeApplication {
 			Document document = Jsoup.parse(((HtmlPage) webClient.getPage(pageUrl)).asXml());
 
 			if (currentPageNum == 1) {
-				int resultCount = Integer.parseInt(document.selectFirst("h5.subheader").text().split(" ")[3]);
+				String[] splittedSubheader = document.selectFirst("h5.subheader").text().split(" ");
+				int resultCount = Integer.parseInt(splittedSubheader[3]);
+				int realRadius = Integer.parseInt(splittedSubheader[8]);
 				maxPageNum = (int) Math.ceil(resultCount / (double) pageSize);
+				if (realRadius != radius) {
+					System.out.println("API changed radius from " + radius + "km to " + realRadius + "km");
+					radius = realRadius;
+				}
 				System.out.println("Found " + resultCount + " results, fetching up to page number " + maxPageNum);
 			}
 
